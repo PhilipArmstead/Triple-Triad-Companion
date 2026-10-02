@@ -1,0 +1,12 @@
+# Build trees. Everything a build produces lives under build/, so one rule covers it.
+/build/
+/install/
+
+# Editor and tooling scratch
+/.cache/
+/compile_commands.json
+/.venv/
+.DS_Store
+*.swp
+.idea
+.vscode
