@@ -1,11 +1,9 @@
 // SPDX-FileCopyrightText: © 2026 Phil Armstead <philarmstead@mailbox.org>
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#define WIN32_LEAN_AND_MEAN
+#pragma once
 
-#include "app.h"
+#include "types.h"
 
 
-int main(int argc, char **argv) {
-	return app_run();
-}
+void process_open(ProcessContext *context);

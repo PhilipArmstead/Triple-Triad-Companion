@@ -27,3 +27,9 @@ game-state ends with the most cards for you.
 
 Download and run the app while Final Fantasy VIII is running. Begin playing
 cards and the app will kick in.
+
+# TODO
+
+- Build list of all cards, their names and their offsets
+- Bring over minimax logic
+- Implement minimax while the card game is running
