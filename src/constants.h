@@ -76,13 +76,13 @@
 #define CARD_HANDS_SIZE (HAND_OBJECT_SIZE * CARDS_IN_HAND * 2)
 
 static const char *positionStrings[BOARD_SIZE] = {
-	"Top left",
-	"Top centre",
-	"Top right",
-	"Mid-left",
-	"Mid-centre",
-	"Mid-right",
-	"Bottom left",
-	"Bottom centre",
-	"Bottom right",
+	"top left",
+	"top centre",
+	"top right",
+	"mid-left",
+	"mid-centre",
+	"mid-right",
+	"bottom left",
+	"bottom centre",
+	"bottom right",
 };
