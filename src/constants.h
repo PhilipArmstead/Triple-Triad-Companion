@@ -21,7 +21,7 @@
 //	- 0x20 = wind
 //	- 0x40 = water
 //	- 0x80 = holy
-// byte 5 is AI's assessment of card'd strength
+// byte 5 is AI's assessment of card's strength
 #define MO_CARD_LOOKUP (0x874D00)
 // For a given ID, 16-bit offset from `base + 2 * (id + 1)`
 // Then `base + offset`
