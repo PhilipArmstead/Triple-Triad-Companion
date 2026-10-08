@@ -42,6 +42,7 @@
 // mask & 0x42 == 42 = Same Wall (requires Same)
 // mask & 0x80 = Elemental
 #define MO_SPECIAL_RULES (0x19CD794)
+#define SPECIAL_RULE_ELEMENTAL (0x80)
 // = 1 if we're in a game
 #define MO_IS_IN_CARD_GAME (0x19CD798)
 // = 4 if we're choosing cards or on the victory screen;
@@ -63,6 +64,15 @@
 //	- byte 2 = card ID
 //	- byte 3 = card record index
 //	- byte 4 = current owner
+//	- byte 5 = element
+//		- 0x01 = Fire
+//		- 0x02 = Ice
+//		- 0x04 = Lightning
+//		- 0x08 = Earth
+//		- 0x10 = Poison
+//		- 0x20 = Wind
+//		- 0x40 = Water
+//		- 0x80 = Holy
 #define MO_BOARD (0x19FF040)
 #define BOARD_SPACE_LENGTH (104)
 // 0x24 byte definition of each card's ID and placement status

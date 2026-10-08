@@ -14,6 +14,7 @@
 static void setOwnersAfterMove(GameState *state, Move move);
 static void
 createGameState(ProcessContext processContext, CachedCards *cache, GameState *gameState);
+static int8_t getElementModifier(const GameState *state, uint8_t cardId, uint8_t position);
 
 Game game_init(const ProcessContext processContext) {
 	CachedCards cache = cards_cache(processContext);
@@ -80,8 +81,10 @@ static void setOwnersAfterMove(GameState *state, Move move) {
 		if (!cards_aDefeatsB(
 					state->cards[move.cardId].attributes,
 					move.position,
+					getElementModifier(state, move.cardId, move.position),
 					state->cards[adjacentCardId].attributes,
-					adjacentPosition
+					adjacentPosition,
+					getElementModifier(state, adjacentCardId, (uint8_t)adjacentPosition)
 				)) {
 			continue;
 		}
@@ -100,6 +103,13 @@ static void setOwnersAfterMove(GameState *state, Move move) {
 	state->owner2 = owner2;
 }
 
+static int8_t
+getElementModifier(const GameState *state, const uint8_t cardId, const uint8_t position) {
+	if (!state->elementalRule || state->cellElements[position] == 0) {
+		return 0;
+	}
+	return state->cards[cardId].element == state->cellElements[position] ? 1 : -1;
+}
 
 static void
 createGameState(const ProcessContext processContext, CachedCards *cache, GameState *gameState) {
@@ -114,6 +124,9 @@ createGameState(const ProcessContext processContext, CachedCards *cache, GameSta
 		// Player 2 owns the first five
 		.hand2 = filledHand,
 		.currentPlayer = PLAYER_1,
+		.elementalRule =
+			(readByte(processContext.handle, processContext.moduleBaseAddress + MO_SPECIAL_RULES) &
+				SPECIAL_RULE_ELEMENTAL) != 0,
 	};
 
 	// Cache in-use cards + attributes + availability
@@ -130,6 +143,7 @@ createGameState(const ProcessContext processContext, CachedCards *cache, GameSta
 			gameState->cards[i] = (Card){
 				.id = id,
 				.attributes = cache->attributes[id],
+				.element = cache->elements[id],
 			};
 		}
 	}
@@ -147,6 +161,7 @@ createGameState(const ProcessContext processContext, CachedCards *cache, GameSta
 			bool isOccupied = buffer[o] & 0x02;
 			uint8_t recordIndex = buffer[o + 3];
 			gameState->grid[x + y * 3] = isOccupied ? recordIndex : 0xFF;
+			gameState->cellElements[x + y * 3] = buffer[o + 5];
 
 			// If there's a card in this cell
 			if (isOccupied) {

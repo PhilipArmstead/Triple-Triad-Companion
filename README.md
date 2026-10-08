@@ -21,7 +21,7 @@ game-state ends with the most cards for you.
 - Protect valuable cards. This algorithm goes for the biggest win, which may not
 	necessarily be what you want if you're playing with the **Direct** trading
 	rule.
-- Consider elements, the **Same** or the **Wall** rules, yet.
+- Consider the **Same**, the **Wall** or the **Plus** rules, yet.
 
 # How to use?
 
@@ -36,5 +36,3 @@ cards and the app will kick in.
 	- Same
 	- Same Wall
 	- Plus
-	- Elements
-

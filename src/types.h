@@ -44,11 +44,13 @@ typedef struct {
 
 typedef struct {
 	CardAttributes attributes[MASTER_CARD_COUNT];
+	uint8_t elements[MASTER_CARD_COUNT];
 	char names[MASTER_CARD_COUNT][16];
 } CachedCards;
 
 typedef struct {
 	CardAttributes attributes;
+	uint8_t element;
 	uint8_t id;
 } Card;
 
@@ -69,6 +71,8 @@ typedef struct {
 	Card cards[CARDS_IN_HAND * 2];
 	// 9 bytes; which card index is in each cell
 	Cell grid[BOARD_SIZE];
+	uint8_t cellElements[BOARD_SIZE];
+	bool elementalRule;
 	// Which of the 10 cards are in p1's hand,
 	uint16_t hand1;
 	// and which are in p2.
