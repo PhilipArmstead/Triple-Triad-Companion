@@ -3,7 +3,7 @@
 
 #include "process.h"
 
-#include "types.h"
+#include "../types.h"
 
 #include <tlhelp32.h>
 #include <windows.h>
@@ -11,7 +11,7 @@
 
 void process_open(ProcessContext *context) {
 	context->handle = NULL;
-	context->pid = 0;
+	context->moduleBaseAddress = NULL;
 
 	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 	if (hSnapshot == INVALID_HANDLE_VALUE) {
@@ -37,8 +37,9 @@ void process_open(ProcessContext *context) {
 		return;
 	}
 
-	HANDLE h =
-		OpenProcess(PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION, FALSE, pid);
+	HANDLE h = OpenProcess(
+		PROCESS_VM_READ | PROCESS_VM_WRITE | PROCESS_QUERY_INFORMATION | SYNCHRONIZE, FALSE, pid
+	);
 	if (h == NULL || h == INVALID_HANDLE_VALUE) {
 		return;
 	}
@@ -72,6 +73,17 @@ void process_open(ProcessContext *context) {
 	}
 
 	context->handle = h;
-	context->pid = pid;
 	context->moduleBaseAddress = baseAddr;
+}
+
+bool process_isRunning(const ProcessContext *context) {
+	return context->handle != NULL && WaitForSingleObject(context->handle, 0) == WAIT_TIMEOUT;
+}
+
+void process_close(ProcessContext *context) {
+	if (context->handle != NULL) {
+		CloseHandle(context->handle);
+	}
+	context->handle = NULL;
+	context->moduleBaseAddress = NULL;
 }

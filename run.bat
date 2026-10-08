@@ -2,7 +2,7 @@
 setlocal
 
 set "config=%~1"
-if not defined config set "config=debug"
+if not defined config set "config=relwithdebinfo"
 
 if /I "%config%"=="debug" (
     set "build_dir=build\debug"
@@ -17,7 +17,7 @@ if /I "%config%"=="debug" (
 )
 
 pushd %build_dir%
-game.exe
+"Triple Triad Solver.exe"
 popd
 
 set "result=%ERRORLEVEL%"

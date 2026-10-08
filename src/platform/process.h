@@ -3,7 +3,9 @@
 
 #pragma once
 
-#include "types.h"
+#include "../types.h"
 
 
 void process_open(ProcessContext *context);
+bool process_isRunning(const ProcessContext *context);
+void process_close(ProcessContext *context);

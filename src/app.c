@@ -3,28 +3,21 @@
 
 #include "app.h"
 
-#include "memory.h"
-#include "process.h"
+#include "constants.h"
+#include "platform/memory.h"
+#include "platform/process.h"
+#include "triple-triad/game.h"
+#include "triple-triad/solver.h"
 #include "types.h"
 
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <windows.h>
 
 
-typedef enum {
-	GAME_STATE_UNKNOWN,
-	GAME_STATE_DISCONNECTED,
-	GAME_STATE_NOT_IN_CARDS,
-	GAME_STATE_PRE_PHASE,
-	GAME_STATE_SELECTION_PHASE,
-	GAME_STATE_IN_GAME_WAITING,
-	GAME_STATE_IN_GAME_ACTING,
-	GAME_STATE_POST_PHASE,
-} GameState;
-
 static LARGE_INTEGER timerFrequency;
-static GameState gameState = GAME_STATE_UNKNOWN;
+static GameStatus gameStatus = GAME_STATUS_UNKNOWN;
 static ProcessContext processContext;
 
 static double getHighPrecisionSeconds(void);
@@ -68,53 +61,71 @@ int app_run(void) {
 static void update(double dt) {
 	(void)dt;
 
+	if (processContext.handle != NULL && !process_isRunning(&processContext)) {
+		process_close(&processContext);
+		gameStatus = GAME_STATUS_DISCONNECTED;
+	}
+
 	// If our state is unknown, try to connect
-	if (gameState <= GAME_STATE_DISCONNECTED) {
+	if (gameStatus <= GAME_STATUS_DISCONNECTED) {
 		process_open(&processContext);
 	}
 
 	if (processContext.handle == NULL) {
-		if (gameState != GAME_STATE_DISCONNECTED) {
-			gameState = GAME_STATE_DISCONNECTED;
+		if (gameStatus != GAME_STATUS_DISCONNECTED) {
+			gameStatus = GAME_STATUS_DISCONNECTED;
 			printf("Disconnected\n");
 		}
 		return;
-	} else if (gameState <= GAME_STATE_DISCONNECTED) {
+	} else if (gameStatus <= GAME_STATUS_DISCONNECTED) {
 		printf("Connected\n");
 	}
 
 	// Connected. What phase are we in?
 	const bool isInCardGame =
-		readByte(processContext.handle, processContext.moduleBaseAddress + 0x19CD798) == 1;
+		readByte(processContext.handle, processContext.moduleBaseAddress + MO_IS_IN_CARD_GAME) == 1;
 
 	if (!isInCardGame) {
-		if (gameState != GAME_STATE_NOT_IN_CARDS) {
-			gameState = GAME_STATE_NOT_IN_CARDS;
+		if (gameStatus != GAME_STATUS_NOT_IN_CARDS) {
+			gameStatus = GAME_STATUS_NOT_IN_CARDS;
 			printf("Not in a card game\n");
 		}
 		return;
 	}
 
 	const uint8_t cardGameState =
-		readByte(processContext.handle, processContext.moduleBaseAddress + 0x19CD7A0);
+		readByte(processContext.handle, processContext.moduleBaseAddress + MO_CARD_GAME_STATE);
 
 
 	if (cardGameState == 4) {
-		if (gameState != GAME_STATE_SELECTION_PHASE) {
-			gameState = GAME_STATE_SELECTION_PHASE;
+		if (gameStatus != GAME_STATUS_SELECTION_PHASE) {
+			gameStatus = GAME_STATUS_SELECTION_PHASE;
 			printf("Choosing cards\n");
 		}
 		return;
 	} else if (cardGameState > 4) {
 		bool isMyTurn =
-			readByte(processContext.handle, processContext.moduleBaseAddress + 0x19FF420) == 1;
+			readByte(processContext.handle, processContext.moduleBaseAddress + MO_IS_MY_TURN) == 1;
 		if (isMyTurn) {
-			if (gameState != GAME_STATE_IN_GAME_ACTING) {
-				gameState = GAME_STATE_IN_GAME_ACTING;
-				printf("Your turn to act\n");
+			if (gameStatus != GAME_STATUS_IN_GAME_ACTING) {
+				gameStatus = GAME_STATUS_IN_GAME_ACTING;
+
+				const Game game = game_init(processContext);
+				const CachedEntry result = solver_getOptimalMove(game.state);
+				const uint8_t score = result & 0x0Fu;
+				const uint8_t move = (uint8_t)(result >> 6);
+				const uint8_t position = move & 0xF;
+				const uint8_t cardId = move >> 4;
+
+				printf(
+					"Your turn to act; move '%s' to %s for a score of %d\n",
+					game.cards.names[game.state.cards[cardId].id],
+					positionStrings[position],
+					(int8_t)score - CARDS_IN_HAND
+				);
 			}
-		} else if (gameState != GAME_STATE_IN_GAME_WAITING) {
-			gameState = GAME_STATE_IN_GAME_WAITING;
+		} else if (gameStatus != GAME_STATUS_IN_GAME_WAITING) {
+			gameStatus = GAME_STATUS_IN_GAME_WAITING;
 			printf("Opponent acting\n");
 		}
 	}
