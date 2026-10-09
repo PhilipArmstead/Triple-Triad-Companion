@@ -62,6 +62,27 @@ cl %compile_options% @sources.rsp ^
 	/Fe:"Triple Triad Solver.exe" ^
 	/link %subsystem% /PDB:"Triple Triad Solver.pdb" "app.res" User32.lib
 set "result=%ERRORLEVEL%"
+
+if not "%result%"=="0" goto :cleanup
+
+> test_sources.rsp (
+	echo "%~dp0tests\test_runner.c"
+	for /r "%~dp0src" %%f in (*.c) do if /I not "%%~nxf"=="main.c" echo "%%f"
+	for /r "%~dp0tests" %%f in (*.c) do if /I not "%%~nxf"=="test_runner.c" echo "%%f"
+)
+
+cl %compile_options% @test_sources.rsp ^
+	/std:c17 ^
+	/TC ^
+	/W4 ^
+	/I"%~dp0." ^
+	/Fd:"Triple Triad Solver Tests.pdb" ^
+	/Fe:"Triple Triad Solver Tests.exe" ^
+	/link %subsystem% /PDB:"Triple Triad Solver Tests.pdb" User32.lib
+set "result=%ERRORLEVEL%"
+
+:cleanup
 del sources.rsp
+del test_sources.rsp 2>nul
 popd
 endlocal & exit /b %result%

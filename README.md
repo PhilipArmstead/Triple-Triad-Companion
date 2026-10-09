@@ -30,6 +30,19 @@ cards and the app will kick in.
 
 ![Screenshot of CLI running](assets/solver-cli.png?v=1)
 
+# Building and running tests
+
+`build.bat` builds both the app and the test runner. Run the test executable
+from the repository root after building:
+
+```bat
+"build\relwithdebinfo\Triple Triad Solver Tests.exe"
+```
+
+Add test suites as C files under `tests/`, using `TEST`, `ASSERT_INT_EQ` and
+`ASSERT_BOOL_EQ` from `tests/test.h`. Register each suite in
+`tests/test_runner.c`; the build automatically compiles all test files.
+
 # TODO
 
 - Special rules
