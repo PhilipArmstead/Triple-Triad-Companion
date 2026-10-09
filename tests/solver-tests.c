@@ -104,7 +104,53 @@ TEST(uses_elements_properly) {
 	ASSERT_INT_EQ(move.position, 5);
 }
 
+/** This test has a board that looks like the following:
+ * M O O
+ * - O -
+ * - - -
+ * It checks whether the solver is smart enough to put the next
+ * card in the mid-left cell. Mid-right will win two cards but
+ * mid-left will invoke the Same rule and win three.
+ */
+TEST(uses_the_same_rule) {
+	GameState state = {0};
+	for (uint8_t i = 0; i < BOARD_SIZE; ++i) {
+		state.grid[i] = 0xFF;
+	}
+
+	state.cards[0].attributes = (CardAttributes){0x0A, 0x0A, 0x0A, 0x0A};
+	state.cards[1].attributes = (CardAttributes){0x01, 0x01, 0x09, 0x0A};
+	state.cards[2].attributes = (CardAttributes){0x01, 0x01, 0x01, 0x01};
+	state.cards[3].attributes = (CardAttributes){0x0A, 0x01, 0x0A, 0x01};
+	state.cards[4].attributes = (CardAttributes){0x0A, 0x0A, 0x0A, 0x0A};
+
+	state.grid[0] = 0;
+	state.grid[1] = 1;
+	state.grid[2] = 2;
+	state.grid[4] = 3;
+	state.sameRule = true;
+	state.hand1 = 1u << 4;
+	state.owner1 = 1u << 0;
+	state.owner2 = (1u << 1) | (1u << 2) | (1u << 3);
+	state.moveCount = 8;
+	state.currentPlayer = PLAYER_1;
+
+	CachedEntry result = solver_getOptimalMove(state);
+	uint8_t encodedMove = (uint8_t)(result >> 6);
+	Move move = {
+		.cardId = encodedMove >> 4,
+		.position = encodedMove & 0x0F,
+	};
+	const uint8_t score = result & 0x0Fu;
+
+	ASSERT_INT_EQ(move.cardId, 4);
+	ASSERT_INT_EQ(move.position, 3);
+	ASSERT_INT_EQ(score, 5);
+}
+
 void registerSolverTests(void) {
 	test_run("solver returns the optimal move", test_returns_the_optimal_move);
 	test_run("solver uses elements properly", test_uses_elements_properly);
+	test_run("solver uses the Same rule", test_uses_the_same_rule);
+	// TODO: check in game whether a combo can trigger another Same/Plus
 }

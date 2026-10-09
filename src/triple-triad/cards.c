@@ -65,6 +65,22 @@ bool cards_aDefeatsB(
 	}
 }
 
+bool cards_aMatchesB(
+	const CardAttributes attributesA,
+	const Cell positionA,
+	const CardAttributes attributesB,
+	const Cell positionB
+) {
+	int8_t diff = (int8_t)(positionA - positionB);
+	switch (diff) {
+		case 3: return attributesA.north == attributesB.south;
+		case -3: return attributesA.south == attributesB.north;
+		case 1: return attributesA.west == attributesB.east;
+		case -1: return attributesA.east == attributesB.west;
+		default: return false;
+	}
+}
+
 static char decodeCharacter(uint8_t code) {
 	if (code == 0x32) {
 		return '-';

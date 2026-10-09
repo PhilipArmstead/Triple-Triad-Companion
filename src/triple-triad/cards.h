@@ -8,6 +8,12 @@
 
 
 CachedCards cards_cache(ProcessContext context);
+bool cards_aMatchesB(
+	CardAttributes attributesA,
+	Cell positionA,
+	CardAttributes attributesB,
+	Cell positionB
+);
 bool cards_aDefeatsB(
 	CardAttributes attributesA,
 	Cell positionA,

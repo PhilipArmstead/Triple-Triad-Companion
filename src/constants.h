@@ -42,6 +42,7 @@
 // mask & 0x42 == 42 = Same Wall (requires Same)
 // mask & 0x80 = Elemental
 #define MO_SPECIAL_RULES (0x19CD794)
+#define SPECIAL_RULE_SAME (0x02)
 #define SPECIAL_RULE_ELEMENTAL (0x80)
 // = 1 if we're in a game
 #define MO_IS_IN_CARD_GAME (0x19CD798)

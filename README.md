@@ -21,7 +21,7 @@ game-state ends with the most cards for you.
 - Protect valuable cards. This algorithm goes for the biggest win, which may not
   necessarily be what you want if you're playing with the **Direct** trading
   rule.
-- Consider the **Same**, the **Wall** or the **Plus** rules, yet.
+- Consider the **Wall** or the **Plus** rules, yet.
 
 # How to use?
 
@@ -46,6 +46,5 @@ Add test suites as C files under `tests/`, using `TEST`, `ASSERT_INT_EQ` and
 # TODO
 
 - Special rules
-  - Same
   - Same Wall
   - Plus

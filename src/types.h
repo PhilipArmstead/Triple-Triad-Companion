@@ -72,6 +72,7 @@ typedef struct {
 	// 9 bytes; which card index is in each cell
 	Cell grid[BOARD_SIZE];
 	uint8_t cellElements[BOARD_SIZE];
+	bool sameRule;
 	bool elementalRule;
 	// Which of the 10 cards are in p1's hand,
 	uint16_t hand1;

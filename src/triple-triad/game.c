@@ -15,6 +15,22 @@ static void setOwnersAfterMove(GameState *state, Move move);
 static void
 createGameState(ProcessContext processContext, CachedCards *cache, GameState *gameState);
 static int8_t getElementModifier(const GameState *state, uint8_t cardId, uint8_t position);
+static void captureNeighbors(
+	GameState *state,
+	uint8_t position,
+	uint16_t *owner1,
+	uint16_t *owner2,
+	uint8_t comboQueue[],
+	uint8_t *queueLength
+);
+static void captureSame(
+	GameState *state,
+	uint8_t position,
+	uint16_t *owner1,
+	uint16_t *owner2,
+	uint8_t comboQueue[],
+	uint8_t *queueLength
+);
 
 Game game_init(const ProcessContext processContext) {
 	CachedCards cache = cards_cache(processContext);
@@ -52,20 +68,40 @@ static void setOwnersAfterMove(GameState *state, Move move) {
 	const uint16_t positionMask = 1 << move.cardId;
 	uint16_t owner1 = state->owner1;
 	uint16_t owner2 = state->owner2;
-	uint16_t opponentMask;
+	uint8_t comboQueue[BOARD_SIZE];
+	uint8_t queueLength = 0;
 	if (state->currentPlayer == PLAYER_1) {
 		owner1 |= positionMask;
-		opponentMask = owner2;
 	} else {
 		owner2 |= positionMask;
-		opponentMask = owner1;
 	}
 
+	captureSame(state, move.position, &owner1, &owner2, comboQueue, &queueLength);
+	captureNeighbors(state, move.position, &owner1, &owner2, NULL, NULL);
+	for (uint8_t i = 0; i < queueLength; ++i) {
+		captureNeighbors(state, comboQueue[i], &owner1, &owner2, comboQueue, &queueLength);
+		captureSame(state, comboQueue[i], &owner1, &owner2, comboQueue, &queueLength);
+	}
+
+	state->owner1 = owner1;
+	state->owner2 = owner2;
+}
+
+static void captureNeighbors(
+	GameState *state,
+	const uint8_t position,
+	uint16_t *owner1,
+	uint16_t *owner2,
+	uint8_t comboQueue[],
+	uint8_t *queueLength
+) {
+	const uint8_t cardId = state->grid[position];
+	const uint16_t opponentMask = state->currentPlayer == PLAYER_1 ? *owner2 : *owner1;
 	int8_t adjacentPositions[4] = {
-		(int8_t)(move.position - 3),
-		(int8_t)(move.position + 3),
-		(int8_t)(move.position % 3 != 0 ? move.position - 1 : -1),
-		(int8_t)(move.position % 3 != 2 ? move.position + 1 : -1),
+		(int8_t)(position - 3),
+		(int8_t)(position + 3),
+		(int8_t)(position % 3 != 0 ? position - 1 : -1),
+		(int8_t)(position % 3 != 2 ? position + 1 : -1),
 	};
 	for (uint8_t i = 0; i < 4; ++i) {
 		int8_t adjacentPosition = adjacentPositions[i];
@@ -79,9 +115,9 @@ static void setOwnersAfterMove(GameState *state, Move move) {
 		}
 
 		if (!cards_aDefeatsB(
-					state->cards[move.cardId].attributes,
-					move.position,
-					getElementModifier(state, move.cardId, move.position),
+					state->cards[cardId].attributes,
+					position,
+					getElementModifier(state, cardId, position),
 					state->cards[adjacentCardId].attributes,
 					adjacentPosition,
 					getElementModifier(state, adjacentCardId, (uint8_t)adjacentPosition)
@@ -91,16 +127,90 @@ static void setOwnersAfterMove(GameState *state, Move move) {
 
 		const uint16_t adjacentMask = 1 << adjacentCardId;
 		if (state->currentPlayer == PLAYER_1) {
-			owner1 |= adjacentMask;
-			owner2 &= ~adjacentMask;
+			*owner1 |= adjacentMask;
+			*owner2 &= ~adjacentMask;
 		} else {
-			owner2 |= adjacentMask;
-			owner1 &= ~adjacentMask;
+			*owner2 |= adjacentMask;
+			*owner1 &= ~adjacentMask;
+		}
+		if (comboQueue != NULL) {
+			comboQueue[(*queueLength)++] = (uint8_t)adjacentPosition;
 		}
 	}
+}
 
-	state->owner1 = owner1;
-	state->owner2 = owner2;
+static void captureSame(
+	GameState *state,
+	const uint8_t position,
+	uint16_t *owner1,
+	uint16_t *owner2,
+	uint8_t comboQueue[],
+	uint8_t *queueLength
+) {
+	if (!state->sameRule) {
+		return;
+	}
+	const uint8_t cardId = state->grid[position];
+	const uint16_t opponentMask = state->currentPlayer == PLAYER_1 ? *owner2 : *owner1;
+	int8_t adjacentPositions[4] = {
+		(int8_t)(position - 3),
+		(int8_t)(position + 3),
+		(int8_t)(position % 3 != 0 ? position - 1 : -1),
+		(int8_t)(position % 3 != 2 ? position + 1 : -1),
+	};
+	uint8_t matching = 0;
+	bool hasOpponent = false;
+	for (uint8_t i = 0; i < 4; ++i) {
+		const int8_t adjacentPosition = adjacentPositions[i];
+		if (adjacentPosition < 0 || adjacentPosition >= BOARD_SIZE) {
+			continue;
+		}
+		const uint8_t adjacentCardId = state->grid[adjacentPosition];
+		if (adjacentCardId == 0xFF) {
+			continue;
+		}
+		if (!cards_aMatchesB(
+					state->cards[cardId].attributes,
+					position,
+					state->cards[adjacentCardId].attributes,
+					(uint8_t)adjacentPosition
+				)) {
+			continue;
+		}
+		++matching;
+		hasOpponent |= (opponentMask & (uint16_t)(1 << adjacentCardId)) != 0;
+	}
+	if (matching < 2 || !hasOpponent) {
+		return;
+	}
+
+	for (uint8_t i = 0; i < 4; ++i) {
+		const int8_t adjacentPosition = adjacentPositions[i];
+		if (adjacentPosition < 0 || adjacentPosition >= BOARD_SIZE) {
+			continue;
+		}
+		const uint8_t adjacentCardId = state->grid[adjacentPosition];
+		if (adjacentCardId == 0xFF || (opponentMask & (uint16_t)(1 << adjacentCardId)) == 0) {
+			continue;
+		}
+		if (!cards_aMatchesB(
+					state->cards[cardId].attributes,
+					position,
+					state->cards[adjacentCardId].attributes,
+					(uint8_t)adjacentPosition
+				)) {
+			continue;
+		}
+		const uint16_t adjacentMask = 1 << adjacentCardId;
+		if (state->currentPlayer == PLAYER_1) {
+			*owner1 |= adjacentMask;
+			*owner2 &= ~adjacentMask;
+		} else {
+			*owner2 |= adjacentMask;
+			*owner1 &= ~adjacentMask;
+		}
+		comboQueue[(*queueLength)++] = (uint8_t)adjacentPosition;
+	}
 }
 
 static int8_t
@@ -124,10 +234,11 @@ createGameState(const ProcessContext processContext, CachedCards *cache, GameSta
 		// Player 2 owns the first five
 		.hand2 = filledHand,
 		.currentPlayer = PLAYER_1,
-		.elementalRule =
-			(readByte(processContext.handle, processContext.moduleBaseAddress + MO_SPECIAL_RULES) &
-				SPECIAL_RULE_ELEMENTAL) != 0,
 	};
+	const uint8_t specialRules =
+		readByte(processContext.handle, processContext.moduleBaseAddress + MO_SPECIAL_RULES);
+	gameState->sameRule = (specialRules & SPECIAL_RULE_SAME) != 0;
+	gameState->elementalRule = (specialRules & SPECIAL_RULE_ELEMENTAL) != 0;
 
 	// Cache in-use cards + attributes + availability
 	{
