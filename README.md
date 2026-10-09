@@ -17,10 +17,10 @@ game-state ends with the most cards for you.
 # What doesn't it do?
 
 - Guarantee a win. Not every hand is winnable (although the opponent can
-	blunder, so your outcome could improve over the course of the game.)
+  blunder, so your outcome could improve over the course of the game.)
 - Protect valuable cards. This algorithm goes for the biggest win, which may not
-	necessarily be what you want if you're playing with the **Direct** trading
-	rule.
+  necessarily be what you want if you're playing with the **Direct** trading
+  rule.
 - Consider the **Same**, the **Wall** or the **Plus** rules, yet.
 
 # How to use?
@@ -30,9 +30,22 @@ cards and the app will kick in.
 
 ![Screenshot of CLI running](assets/solver-cli.png?v=1)
 
+# Building and running tests
+
+`build.bat` builds both the app and the test runner. Run the test executable
+from the repository root after building:
+
+```bat
+"build\relwithdebinfo\Triple Triad Tests.exe"
+```
+
+Add test suites as C files under `tests/`, using `TEST`, `ASSERT_INT_EQ` and
+`ASSERT_BOOL_EQ` from `tests/test.h`. Register each suite in
+`tests/test.c`; the build automatically compiles all test files.
+
 # TODO
 
 - Special rules
-	- Same
-	- Same Wall
-	- Plus
+  - Same
+  - Same Wall
+  - Plus
