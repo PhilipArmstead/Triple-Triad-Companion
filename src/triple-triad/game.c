@@ -18,7 +18,10 @@ static int8_t getElementModifier(const GameState *state, uint8_t cardId, uint8_t
 static uint8_t
 countSameMatches(const GameState *state, uint8_t position, const int8_t adjacentPositions[4]);
 static bool aMatchesOrBeatsB(
-	CardAttributes attributesA, Cell positionA, CardAttributes attributesB, Cell positionB
+	CardAttributes attributesA,
+	Cell positionA,
+	CardAttributes attributesB,
+	Cell positionB
 );
 static void captureNeighbors(
 	GameState *state,
@@ -248,8 +251,8 @@ static void capturePlus(
 		if (adjacentCardId == 0xFF) {
 			continue;
 		}
-		sums[i] = (uint8_t)(getSide(attributes, i) +
-							getSide(state->cards[adjacentCardId].attributes, i ^ 1));
+		sums[i] =
+			(uint8_t)(getSide(attributes, i) + getSide(state->cards[adjacentCardId].attributes, i ^ 1));
 		// Like the game, only the first sum to reach the highest count is used, so if two
 		// different pairs form, only one of them flips
 		if (++sumCounts[sums[i]] > bestCount) {
@@ -292,7 +295,9 @@ static uint8_t getSide(const CardAttributes attributes, const uint8_t direction)
 }
 
 static uint8_t countSameMatches(
-	const GameState *state, const uint8_t position, const int8_t adjacentPositions[4]
+	const GameState *state,
+	const uint8_t position,
+	const int8_t adjacentPositions[4]
 ) {
 	const CardAttributes attributes = state->cards[state->grid[position]].attributes;
 	// Same order as adjacentPositions
@@ -314,11 +319,8 @@ static uint8_t countSameMatches(
 			continue;
 		}
 		if (cards_aMatchesB(
-				attributes,
-				position,
-				state->cards[adjacentCardId].attributes,
-				(uint8_t)adjacentPosition
-			)) {
+					attributes, position, state->cards[adjacentCardId].attributes, (uint8_t)adjacentPosition
+				)) {
 			++matching;
 		}
 	}
@@ -332,7 +334,7 @@ static bool aMatchesOrBeatsB(
 	const Cell positionB
 ) {
 	return cards_aMatchesB(attributesA, positionA, attributesB, positionB) ||
-		cards_aDefeatsB(attributesA, positionA, 0, attributesB, positionB, 0);
+				 cards_aDefeatsB(attributesA, positionA, 0, attributesB, positionB, 0);
 }
 
 static int8_t

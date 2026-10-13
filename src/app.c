@@ -4,10 +4,10 @@
 #include "app.h"
 
 #include "constants.h"
-#include "states.h"
-#include "types.h"
 #include "platform/memory.h"
 #include "platform/process.h"
+#include "states.h"
+#include "types.h"
 
 #include <stdbool.h>
 #include <stdint.h>

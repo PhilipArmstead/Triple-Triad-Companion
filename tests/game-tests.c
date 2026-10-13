@@ -247,9 +247,7 @@ void registerGameTests(void) {
 		"score counts owned cards and remaining hand", test_score_counts_owned_cards_and_remaining_hand
 	);
 	test_run("combo cards do not trigger Same", test_combo_cards_do_not_trigger_same);
-	test_run(
-		"basic captures combo when Same triggers", test_basic_captures_combo_when_same_triggers
-	);
+	test_run("basic captures combo when Same triggers", test_basic_captures_combo_when_same_triggers);
 	test_run("Same matches can be own cards", test_same_matches_can_be_own_cards);
 	test_run("Same flips using raw values", test_same_flips_using_raw_values);
 	test_run("Same Wall counts an A facing the wall", test_same_wall_counts_an_a_facing_the_wall);

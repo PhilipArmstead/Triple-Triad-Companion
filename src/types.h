@@ -3,11 +3,11 @@
 
 #pragma once
 
+#include "constants.h"
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <windows.h>
-
-#include "constants.h"
 
 
 typedef struct {

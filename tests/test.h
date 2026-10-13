@@ -10,13 +10,7 @@ typedef void (*TestFunction)(void);
 
 void test_run(const char *name, TestFunction fn);
 int test_finish(void);
-void test_assertIntEq(
-	int actual,
-	int expected,
-	const char *expression,
-	const char *file,
-	int line
-);
+void test_assertIntEq(int actual, int expected, const char *expression, const char *file, int line);
 void test_assertBoolEq(
 	bool actual,
 	bool expected,

@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "../types.h"
 #include "../../lib/uthash.h"
+#include "../types.h"
 
 
-CachedEntry solver_getOptimalMove( GameState state);
+CachedEntry solver_getOptimalMove(GameState state);

@@ -5,8 +5,8 @@
 
 #include "game.h"
 
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 typedef struct {
 	CachedEntry hit; // Move, bound and score encoded in 16 bits
