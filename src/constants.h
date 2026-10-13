@@ -7,8 +7,10 @@
 #define MASTER_CARD_COUNT (110)
 #define BOARD_SIZE (9)
 #define CARDS_IN_HAND (5)
+// A card side's value ranges from 1 to A (10)
+#define MAX_SIDE_VALUE (10)
 // With Same Wall, a side with this value (A) matches the edge of the board
-#define SAME_WALL_VALUE (10)
+#define SAME_WALL_VALUE (MAX_SIDE_VALUE)
 #define MAXIUMUM_POSSIBLE_MOVES (BOARD_SIZE * CARDS_IN_HAND)
 
 /** Memory offsets */
@@ -46,6 +48,7 @@
 #define MO_SPECIAL_RULES (0x19CD794)
 #define SPECIAL_RULE_SAME (0x02)
 #define SPECIAL_RULE_SAME_WALL (0x42)
+#define SPECIAL_RULE_PLUS (0x04)
 #define SPECIAL_RULE_ELEMENTAL (0x80)
 // = 1 if we're in a game
 #define MO_IS_IN_CARD_GAME (0x19CD798)

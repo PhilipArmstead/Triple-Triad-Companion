@@ -176,6 +176,72 @@ TEST(same_wall_counts_an_a_facing_the_wall) {
 	ASSERT_INT_EQ(result.owner2, 1u << 1);
 }
 
+static GameState createPlusState(void) {
+	GameState state = createSameState();
+	state.sameRule = false;
+	state.plusRule = true;
+	return state;
+}
+
+/** Board before placing card 0 in the centre:
+ * O O -
+ * O - -
+ * - - -
+ * Card 0 loses to both the top-centre and mid-left cards, but the touching
+ * sides add up to 10 with each, so Plus flips them. Top-centre then combos
+ * into the top-left card.
+ */
+TEST(plus_flips_cards_with_equal_sums) {
+	GameState state = createPlusState();
+	state.cards[0].attributes = (CardAttributes){3, 1, 4, 1};
+	state.cards[1].attributes = (CardAttributes){1, 7, 9, 1};
+	state.cards[2].attributes = (CardAttributes){1, 1, 1, 6};
+	state.cards[3].attributes = (CardAttributes){1, 1, 1, 1};
+	state.grid[1] = 1;
+	state.grid[3] = 2;
+	state.grid[0] = 3;
+	state.owner2 = (1u << 1) | (1u << 2) | (1u << 3);
+
+	GameState result = game_placeCard(state, (Move){.cardId = 0, .position = 4});
+
+	ASSERT_INT_EQ(result.owner1, 0x0F);
+	ASSERT_INT_EQ(result.owner2, 0);
+
+	// One of the pair can be my own card
+	state.owner1 = 1u << 2;
+	state.owner2 = (1u << 1) | (1u << 3);
+	result = game_placeCard(state, (Move){.cardId = 0, .position = 4});
+
+	ASSERT_INT_EQ(result.owner1, 0x0F);
+	ASSERT_INT_EQ(result.owner2, 0);
+}
+
+/** Board before placing card 0 in the centre:
+ * - O -
+ * O - O
+ * - O -
+ * The sums are 10 (north), 12 (south), 12 (west) and 10 (east). Checking
+ * north, south, west then east, the 12s pair up first, so only those flip.
+ */
+TEST(plus_uses_only_the_first_pair_to_form) {
+	GameState state = createPlusState();
+	state.cards[0].attributes = (CardAttributes){1, 2, 3, 4};
+	state.cards[1].attributes = (CardAttributes){1, 9, 1, 1};
+	state.cards[2].attributes = (CardAttributes){10, 1, 1, 1};
+	state.cards[3].attributes = (CardAttributes){1, 1, 1, 9};
+	state.cards[4].attributes = (CardAttributes){1, 1, 6, 1};
+	state.grid[1] = 1;
+	state.grid[7] = 2;
+	state.grid[3] = 3;
+	state.grid[5] = 4;
+	state.owner2 = 0x1E;
+
+	const GameState result = game_placeCard(state, (Move){.cardId = 0, .position = 4});
+
+	ASSERT_INT_EQ(result.owner1, (1u << 0) | (1u << 2) | (1u << 3));
+	ASSERT_INT_EQ(result.owner2, (1u << 1) | (1u << 4));
+}
+
 void registerGameTests(void) {
 	test_run(
 		"score counts owned cards and remaining hand", test_score_counts_owned_cards_and_remaining_hand
@@ -187,4 +253,6 @@ void registerGameTests(void) {
 	test_run("Same matches can be own cards", test_same_matches_can_be_own_cards);
 	test_run("Same flips using raw values", test_same_flips_using_raw_values);
 	test_run("Same Wall counts an A facing the wall", test_same_wall_counts_an_a_facing_the_wall);
+	test_run("Plus flips cards with equal sums", test_plus_flips_cards_with_equal_sums);
+	test_run("Plus uses only the first pair to form", test_plus_uses_only_the_first_pair_to_form);
 }

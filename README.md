@@ -21,7 +21,6 @@ game-state ends with the most cards for you.
 - Protect valuable cards. This algorithm goes for the biggest win, which may not
   necessarily be what you want if you're playing with the **Direct** trading
   rule.
-- Consider the **Plus** rule, yet.
 
 # How to use?
 
@@ -42,8 +41,3 @@ from the repository root after building:
 Add test suites as C files under `tests/`, using `TEST`, `ASSERT_INT_EQ` and
 `ASSERT_BOOL_EQ` from `tests/test.h`. Register each suite in
 `tests/test.c`; the build automatically compiles all test files.
-
-# TODO
-
-- Special rules
-  - Plus

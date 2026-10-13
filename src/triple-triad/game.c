@@ -36,6 +36,15 @@ static void captureSame(
 	uint8_t comboQueue[],
 	uint8_t *queueLength
 );
+static void capturePlus(
+	GameState *state,
+	uint8_t position,
+	uint16_t *owner1,
+	uint16_t *owner2,
+	uint8_t comboQueue[],
+	uint8_t *queueLength
+);
+static uint8_t getSide(CardAttributes attributes, uint8_t direction);
 
 Game game_init(const ProcessContext processContext) {
 	CachedCards cache = cards_cache(processContext);
@@ -81,15 +90,16 @@ static void setOwnersAfterMove(GameState *state, Move move) {
 		owner2 |= positionMask;
 	}
 
-	// Same only applies to the placed card. If it flips anything, every card the placed card
-	// flipped (including basic captures) starts a combo; otherwise nothing does.
+	// Same and Plus only apply to the placed card. If either flips anything, every card the placed
+	// card flipped (including basic captures) starts a combo; otherwise nothing does.
 	captureSame(state, move.position, &owner1, &owner2, comboQueue, &queueLength);
-	const bool sameTriggered = queueLength > 0;
+	capturePlus(state, move.position, &owner1, &owner2, comboQueue, &queueLength);
+	const bool comboTriggered = queueLength > 0;
 	captureNeighbors(state, move.position, &owner1, &owner2, comboQueue, &queueLength);
-	if (!sameTriggered) {
+	if (!comboTriggered) {
 		queueLength = 0;
 	}
-	// Combo cards only perform basic captures; they never trigger Same again
+	// Combo cards only perform basic captures; they never trigger Same or Plus again
 	for (uint8_t i = 0; i < queueLength; ++i) {
 		captureNeighbors(state, comboQueue[i], &owner1, &owner2, comboQueue, &queueLength);
 	}
@@ -204,6 +214,83 @@ static void captureSame(
 	}
 }
 
+static void capturePlus(
+	GameState *state,
+	const uint8_t position,
+	uint16_t *owner1,
+	uint16_t *owner2,
+	uint8_t comboQueue[],
+	uint8_t *queueLength
+) {
+	if (!state->plusRule) {
+		return;
+	}
+	const CardAttributes attributes = state->cards[state->grid[position]].attributes;
+	const uint16_t opponentMask = state->currentPlayer == PLAYER_1 ? *owner2 : *owner1;
+	int8_t adjacentPositions[4] = {
+		(int8_t)(position - 3),
+		(int8_t)(position + 3),
+		(int8_t)(position % 3 != 0 ? position - 1 : -1),
+		(int8_t)(position % 3 != 2 ? position + 1 : -1),
+	};
+	// Sum the touching raw values with each adjacent card of either owner (walls and element
+	// modifiers are ignored). 0 marks a side with no card.
+	uint8_t sums[4] = {0};
+	uint8_t sumCounts[MAX_SIDE_VALUE * 2 + 1] = {0};
+	uint8_t bestCount = 0;
+	uint8_t bestSum = 0;
+	for (uint8_t i = 0; i < 4; ++i) {
+		const int8_t adjacentPosition = adjacentPositions[i];
+		if (adjacentPosition < 0 || adjacentPosition >= BOARD_SIZE) {
+			continue;
+		}
+		const uint8_t adjacentCardId = state->grid[adjacentPosition];
+		if (adjacentCardId == 0xFF) {
+			continue;
+		}
+		sums[i] = (uint8_t)(getSide(attributes, i) +
+							getSide(state->cards[adjacentCardId].attributes, i ^ 1));
+		// Like the game, only the first sum to reach the highest count is used, so if two
+		// different pairs form, only one of them flips
+		if (++sumCounts[sums[i]] > bestCount) {
+			bestCount = sumCounts[sums[i]];
+			bestSum = sums[i];
+		}
+	}
+	if (bestCount < 2) {
+		return;
+	}
+
+	for (uint8_t i = 0; i < 4; ++i) {
+		if (sums[i] != bestSum) {
+			continue;
+		}
+		const uint8_t adjacentCardId = state->grid[adjacentPositions[i]];
+		const uint16_t adjacentMask = 1 << adjacentCardId;
+		if ((opponentMask & adjacentMask) == 0) {
+			continue;
+		}
+		if (state->currentPlayer == PLAYER_1) {
+			*owner1 |= adjacentMask;
+			*owner2 &= ~adjacentMask;
+		} else {
+			*owner2 |= adjacentMask;
+			*owner1 &= ~adjacentMask;
+		}
+		comboQueue[(*queueLength)++] = (uint8_t)adjacentPositions[i];
+	}
+}
+
+// Directions are ordered north, south, west, east, so `direction ^ 1` is the opposite side
+static uint8_t getSide(const CardAttributes attributes, const uint8_t direction) {
+	switch (direction) {
+		case 0: return attributes.north;
+		case 1: return attributes.south;
+		case 2: return attributes.west;
+		default: return attributes.east;
+	}
+}
+
 static uint8_t countSameMatches(
 	const GameState *state, const uint8_t position, const int8_t adjacentPositions[4]
 ) {
@@ -274,6 +361,7 @@ createGameState(const ProcessContext processContext, CachedCards *cache, GameSta
 		readByte(processContext.handle, processContext.moduleBaseAddress + MO_SPECIAL_RULES);
 	gameState->sameRule = (specialRules & SPECIAL_RULE_SAME) != 0;
 	gameState->sameWallRule = (specialRules & SPECIAL_RULE_SAME_WALL) == SPECIAL_RULE_SAME_WALL;
+	gameState->plusRule = (specialRules & SPECIAL_RULE_PLUS) != 0;
 	gameState->elementalRule = (specialRules & SPECIAL_RULE_ELEMENTAL) != 0;
 
 	// Cache in-use cards + attributes + availability
