@@ -4,6 +4,7 @@
 #include "test.h"
 
 #include <stdio.h>
+#include <string.h>
 
 
 static unsigned int testsRun;
@@ -12,6 +13,7 @@ static bool currentTestFailed;
 
 void registerGameTests(void);
 void registerSolverTests(void);
+void registerPerformanceTests(void);
 
 void test_run(const char *name, const TestFunction fn) {
 	currentTestFailed = false;
@@ -67,8 +69,15 @@ void test_assertBoolEq(
 	);
 }
 
-int main(void) {
+int main(const int argc, const char *argv[]) {
 	registerGameTests();
 	registerSolverTests();
+	// The performance test takes a while, so only run it when asked
+	for (int i = 1; i < argc; ++i) {
+		if (strcmp(argv[i], "--performance") == 0) {
+			registerPerformanceTests();
+			break;
+		}
+	}
 	return test_finish();
 }

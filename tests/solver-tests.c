@@ -3,7 +3,12 @@
 
 #include "../src/triple-triad/game.h"
 #include "../src/triple-triad/solver.h"
+#include "fixtures.h"
 #include "test.h"
+
+#include <stdio.h>
+
+#define BRUTE_FORCE_POSITIONS (8)
 
 
 /** This test has a board that looks like the following:
@@ -148,8 +153,149 @@ TEST(uses_the_same_rule) {
 	ASSERT_INT_EQ(score, 5);
 }
 
+/** This test has a board that looks like the following:
+ * O O O
+ * O O O
+ * O - -
+ * Whichever empty cell player 1 fills, player 2 takes it with the last
+ * move, so every move scores 0. The solver must still return a legal move.
+ */
+TEST(returns_a_move_when_every_move_scores_zero) {
+	GameState state = {0};
+	state.cards[0].attributes = (CardAttributes){1, 1, 1, 1};
+	state.cards[1].attributes = (CardAttributes){0x0A, 0x0A, 0x0A, 0x0A};
+	for (uint8_t i = 0; i < 7; ++i) {
+		state.cards[i + 2].attributes = (CardAttributes){0x0A, 0x0A, 0x0A, 0x0A};
+		state.grid[i] = i + 2;
+		state.owner2 |= 1u << (i + 2);
+	}
+	state.grid[7] = 0xFF;
+	state.grid[8] = 0xFF;
+	state.hand1 = 1u << 0;
+	state.hand2 = 1u << 1;
+	state.moveCount = 7;
+	state.currentPlayer = PLAYER_1;
+
+	const CachedEntry result = solver_getOptimalMove(state);
+	const uint8_t encodedMove = (uint8_t)(result >> 6);
+	const Move move = {
+		.cardId = encodedMove >> 4,
+		.position = encodedMove & 0x0F,
+	};
+	const uint8_t score = result & 0x0Fu;
+
+	ASSERT_INT_EQ(move.cardId, 0);
+	ASSERT_BOOL_EQ(move.position == 7 || move.position == 8, true);
+	ASSERT_INT_EQ(score, 0);
+}
+
+/** Plain minimax with no pruning or caching, to check the solver against. */
+static uint8_t bruteForceScore(const GameState state) {
+	if (state.moveCount == BOARD_SIZE) {
+		return game_getPlayerScore(state);
+	}
+	const bool maximising = state.currentPlayer == PLAYER_1;
+	const uint16_t hand = maximising ? state.hand1 : state.hand2;
+	uint8_t best = maximising ? 0x00 : 0xFF;
+	for (uint8_t card = 0; card < CARDS_IN_HAND * 2; ++card) {
+		if ((hand & (1u << card)) == 0) {
+			continue;
+		}
+		for (uint8_t cell = 0; cell < BOARD_SIZE; ++cell) {
+			if (state.grid[cell] != 0xFF) {
+				continue;
+			}
+			const uint8_t score =
+				bruteForceScore(game_placeCard(state, (Move){.cardId = card, .position = cell}));
+			if (maximising ? score > best : score < best) {
+				best = score;
+			}
+		}
+	}
+	return best;
+}
+
+static Move getPseudoRandomMove(const GameState state, uint32_t *seed) {
+	const uint16_t hand = state.currentPlayer == PLAYER_1 ? state.hand1 : state.hand2;
+	Move moves[MAXIUMUM_POSSIBLE_MOVES];
+	uint8_t count = 0;
+	for (uint8_t card = 0; card < CARDS_IN_HAND * 2; ++card) {
+		for (uint8_t cell = 0; cell < BOARD_SIZE; ++cell) {
+			if ((hand & (1u << card)) != 0 && state.grid[cell] == 0xFF) {
+				moves[count++] = (Move){.cardId = card, .position = cell};
+			}
+		}
+	}
+	*seed = *seed * 1103515245u + 12345u;
+	return moves[(*seed >> 16) % count];
+}
+
+/**
+ * Plays a few pseudo-random opening moves under every rule combination, then
+ * checks the solver's score against brute force, and that its move achieves it.
+ */
+TEST(matches_brute_force_search) {
+	uint32_t seed = 1;
+	for (size_t rules = 0; rules < fixtures_ruleSetCount; ++rules) {
+		for (uint8_t i = 0; i < BRUTE_FORCE_POSITIONS; ++i) {
+			GameState state = fixtures_createGame(fixtures_ruleSets[rules]);
+			// Alternate between player 1 and player 2 being next to move
+			const uint8_t openingMoves = 3 + (i & 1);
+			while (state.moveCount < openingMoves) {
+				state = game_placeCard(state, getPseudoRandomMove(state, &seed));
+			}
+
+			const CachedEntry result = solver_getOptimalMove(state);
+			const Move move = fixtures_decodeMove(result);
+			const uint8_t score = result & 0x0Fu;
+			const uint8_t expectedScore = bruteForceScore(state);
+			const bool isLegal = fixtures_isLegalMove(state, move);
+			const uint8_t moveScore = isLegal ? bruteForceScore(game_placeCard(state, move)) : 0xFF;
+			if (score != expectedScore || moveScore != expectedScore) {
+				fprintf(stderr, "%s: position %d differs\n", fixtures_ruleSets[rules].name, i);
+				ASSERT_INT_EQ(score, expectedScore);
+				ASSERT_INT_EQ(moveScore, expectedScore);
+			}
+		}
+	}
+}
+
+/**
+ * Gives both players a pair of identical cards, which the solver only searches
+ * once, and checks the result still matches brute force under every rule set.
+ */
+TEST(handles_identical_cards) {
+	uint32_t seed = 7;
+	for (size_t rules = 0; rules < fixtures_ruleSetCount; ++rules) {
+		GameState state = fixtures_createGame(fixtures_ruleSets[rules]);
+		state.cards[2] = state.cards[0];
+		state.cards[3] = state.cards[1];
+		while (state.moveCount < 3) {
+			state = game_placeCard(state, getPseudoRandomMove(state, &seed));
+		}
+
+		const CachedEntry result = solver_getOptimalMove(state);
+		const Move move = fixtures_decodeMove(result);
+		const uint8_t score = result & 0x0Fu;
+		const uint8_t expectedScore = bruteForceScore(state);
+		const bool isLegal = fixtures_isLegalMove(state, move);
+		const uint8_t moveScore = isLegal ? bruteForceScore(game_placeCard(state, move)) : 0xFF;
+		if (score != expectedScore || moveScore != expectedScore) {
+			fprintf(stderr, "%s: identical cards differ\n", fixtures_ruleSets[rules].name);
+			ASSERT_INT_EQ(score, expectedScore);
+			ASSERT_INT_EQ(moveScore, expectedScore);
+		}
+	}
+}
+
 void registerSolverTests(void) {
 	test_run("solver returns the optimal move", test_returns_the_optimal_move);
 	test_run("solver uses elements properly", test_uses_elements_properly);
 	test_run("solver uses the Same rule", test_uses_the_same_rule);
+	test_run("solver matches brute-force search", test_matches_brute_force_search);
+	test_run("solver handles identical cards", test_handles_identical_cards);
+	test_run(
+		"solver returns a move when every move scores zero",
+		test_returns_a_move_when_every_move_scores_zero
+	);
 }

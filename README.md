@@ -38,6 +38,14 @@ from the repository root after building:
 "build\relwithdebinfo\Triple Triad Tests.exe"
 ```
 
+Pass `--performance` to also run the performance test, which solves and plays
+out a full game under every combination of rules several times and reports how
+long it took:
+
+```bat
+"build\relwithdebinfo\Triple Triad Tests.exe" --performance
+```
+
 Add test suites as C files under `tests/`, using `TEST`, `ASSERT_INT_EQ` and
 `ASSERT_BOOL_EQ` from `tests/test.h`. Register each suite in
 `tests/test.c`; the build automatically compiles all test files.
