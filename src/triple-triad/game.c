@@ -15,6 +15,9 @@ static void setOwnersAfterMove(GameState *state, Move move);
 static void
 createGameState(ProcessContext processContext, CachedCards *cache, GameState *gameState);
 static int8_t getElementModifier(const GameState *state, uint8_t cardId, uint8_t position);
+static bool aMatchesOrBeatsB(
+	CardAttributes attributesA, Cell positionA, CardAttributes attributesB, Cell positionB
+);
 static void captureNeighbors(
 	GameState *state,
 	uint8_t position,
@@ -76,11 +79,17 @@ static void setOwnersAfterMove(GameState *state, Move move) {
 		owner2 |= positionMask;
 	}
 
+	// Same only applies to the placed card. If it flips anything, every card the placed card
+	// flipped (including basic captures) starts a combo; otherwise nothing does.
 	captureSame(state, move.position, &owner1, &owner2, comboQueue, &queueLength);
-	captureNeighbors(state, move.position, &owner1, &owner2, NULL, NULL);
+	const bool sameTriggered = queueLength > 0;
+	captureNeighbors(state, move.position, &owner1, &owner2, comboQueue, &queueLength);
+	if (!sameTriggered) {
+		queueLength = 0;
+	}
+	// Combo cards only perform basic captures; they never trigger Same again
 	for (uint8_t i = 0; i < queueLength; ++i) {
 		captureNeighbors(state, comboQueue[i], &owner1, &owner2, comboQueue, &queueLength);
-		captureSame(state, comboQueue[i], &owner1, &owner2, comboQueue, &queueLength);
 	}
 
 	state->owner1 = owner1;
@@ -158,8 +167,9 @@ static void captureSame(
 		(int8_t)(position % 3 != 0 ? position - 1 : -1),
 		(int8_t)(position % 3 != 2 ? position + 1 : -1),
 	};
+	// Matches compare raw values, ignoring element modifiers, and can be against cards of either
+	// owner
 	uint8_t matching = 0;
-	bool hasOpponent = false;
 	for (uint8_t i = 0; i < 4; ++i) {
 		const int8_t adjacentPosition = adjacentPositions[i];
 		if (adjacentPosition < 0 || adjacentPosition >= BOARD_SIZE) {
@@ -178,12 +188,13 @@ static void captureSame(
 			continue;
 		}
 		++matching;
-		hasOpponent |= (opponentMask & (uint16_t)(1 << adjacentCardId)) != 0;
 	}
-	if (matching < 2 || !hasOpponent) {
+	if (matching < 2) {
 		return;
 	}
 
+	// Once triggered, the game flips every opponent neighbour whose raw value is matched or
+	// beaten, again ignoring element modifiers
 	for (uint8_t i = 0; i < 4; ++i) {
 		const int8_t adjacentPosition = adjacentPositions[i];
 		if (adjacentPosition < 0 || adjacentPosition >= BOARD_SIZE) {
@@ -193,7 +204,7 @@ static void captureSame(
 		if (adjacentCardId == 0xFF || (opponentMask & (uint16_t)(1 << adjacentCardId)) == 0) {
 			continue;
 		}
-		if (!cards_aMatchesB(
+		if (!aMatchesOrBeatsB(
 					state->cards[cardId].attributes,
 					position,
 					state->cards[adjacentCardId].attributes,
@@ -211,6 +222,16 @@ static void captureSame(
 		}
 		comboQueue[(*queueLength)++] = (uint8_t)adjacentPosition;
 	}
+}
+
+static bool aMatchesOrBeatsB(
+	const CardAttributes attributesA,
+	const Cell positionA,
+	const CardAttributes attributesB,
+	const Cell positionB
+) {
+	return cards_aMatchesB(attributesA, positionA, attributesB, positionB) ||
+		cards_aDefeatsB(attributesA, positionA, 0, attributesB, positionB, 0);
 }
 
 static int8_t

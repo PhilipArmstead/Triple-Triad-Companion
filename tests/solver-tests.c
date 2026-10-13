@@ -152,5 +152,4 @@ void registerSolverTests(void) {
 	test_run("solver returns the optimal move", test_returns_the_optimal_move);
 	test_run("solver uses elements properly", test_uses_elements_properly);
 	test_run("solver uses the Same rule", test_uses_the_same_rule);
-	// TODO: check in game whether a combo can trigger another Same/Plus
 }
