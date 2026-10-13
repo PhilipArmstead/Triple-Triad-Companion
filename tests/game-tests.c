@@ -140,6 +140,42 @@ TEST(same_flips_using_raw_values) {
 	ASSERT_INT_EQ(result.owner2, 0);
 }
 
+/** Board before placing card 0 in the top centre:
+ * - - -
+ * - O -
+ * - - -
+ * Card 0's north side is an A facing the wall, and its south side matches
+ * the centre card. With Same Wall that is two matches, so the centre flips.
+ */
+TEST(same_wall_counts_an_a_facing_the_wall) {
+	GameState state = createSameState();
+	state.sameWallRule = true;
+	state.cards[0].attributes = (CardAttributes){10, 5, 1, 1};
+	state.cards[1].attributes = (CardAttributes){5, 1, 1, 1};
+	state.grid[4] = 1;
+	state.owner2 = 1u << 1;
+
+	GameState result = game_placeCard(state, (Move){.cardId = 0, .position = 1});
+
+	ASSERT_INT_EQ(result.owner1, (1u << 0) | (1u << 1));
+	ASSERT_INT_EQ(result.owner2, 0);
+
+	// Only an A matches the wall
+	state.cards[0].attributes.north = 9;
+	result = game_placeCard(state, (Move){.cardId = 0, .position = 1});
+
+	ASSERT_INT_EQ(result.owner1, 1u << 0);
+	ASSERT_INT_EQ(result.owner2, 1u << 1);
+
+	// Without Same Wall the wall is ignored
+	state.cards[0].attributes.north = 10;
+	state.sameWallRule = false;
+	result = game_placeCard(state, (Move){.cardId = 0, .position = 1});
+
+	ASSERT_INT_EQ(result.owner1, 1u << 0);
+	ASSERT_INT_EQ(result.owner2, 1u << 1);
+}
+
 void registerGameTests(void) {
 	test_run(
 		"score counts owned cards and remaining hand", test_score_counts_owned_cards_and_remaining_hand
@@ -150,4 +186,5 @@ void registerGameTests(void) {
 	);
 	test_run("Same matches can be own cards", test_same_matches_can_be_own_cards);
 	test_run("Same flips using raw values", test_same_flips_using_raw_values);
+	test_run("Same Wall counts an A facing the wall", test_same_wall_counts_an_a_facing_the_wall);
 }

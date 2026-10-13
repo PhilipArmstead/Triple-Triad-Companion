@@ -73,6 +73,7 @@ typedef struct {
 	Cell grid[BOARD_SIZE];
 	uint8_t cellElements[BOARD_SIZE];
 	bool sameRule;
+	bool sameWallRule;
 	bool elementalRule;
 	// Which of the 10 cards are in p1's hand,
 	uint16_t hand1;

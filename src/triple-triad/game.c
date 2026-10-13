@@ -15,6 +15,8 @@ static void setOwnersAfterMove(GameState *state, Move move);
 static void
 createGameState(ProcessContext processContext, CachedCards *cache, GameState *gameState);
 static int8_t getElementModifier(const GameState *state, uint8_t cardId, uint8_t position);
+static uint8_t
+countSameMatches(const GameState *state, uint8_t position, const int8_t adjacentPositions[4]);
 static bool aMatchesOrBeatsB(
 	CardAttributes attributesA, Cell positionA, CardAttributes attributesB, Cell positionB
 );
@@ -167,29 +169,7 @@ static void captureSame(
 		(int8_t)(position % 3 != 0 ? position - 1 : -1),
 		(int8_t)(position % 3 != 2 ? position + 1 : -1),
 	};
-	// Matches compare raw values, ignoring element modifiers, and can be against cards of either
-	// owner
-	uint8_t matching = 0;
-	for (uint8_t i = 0; i < 4; ++i) {
-		const int8_t adjacentPosition = adjacentPositions[i];
-		if (adjacentPosition < 0 || adjacentPosition >= BOARD_SIZE) {
-			continue;
-		}
-		const uint8_t adjacentCardId = state->grid[adjacentPosition];
-		if (adjacentCardId == 0xFF) {
-			continue;
-		}
-		if (!cards_aMatchesB(
-					state->cards[cardId].attributes,
-					position,
-					state->cards[adjacentCardId].attributes,
-					(uint8_t)adjacentPosition
-				)) {
-			continue;
-		}
-		++matching;
-	}
-	if (matching < 2) {
+	if (countSameMatches(state, position, adjacentPositions) < 2) {
 		return;
 	}
 
@@ -222,6 +202,40 @@ static void captureSame(
 		}
 		comboQueue[(*queueLength)++] = (uint8_t)adjacentPosition;
 	}
+}
+
+static uint8_t countSameMatches(
+	const GameState *state, const uint8_t position, const int8_t adjacentPositions[4]
+) {
+	const CardAttributes attributes = state->cards[state->grid[position]].attributes;
+	// Same order as adjacentPositions
+	const uint8_t sides[4] = {attributes.north, attributes.south, attributes.west, attributes.east};
+	// Matches compare raw values, ignoring element modifiers, and can be against cards of either
+	// owner
+	uint8_t matching = 0;
+	for (uint8_t i = 0; i < 4; ++i) {
+		const int8_t adjacentPosition = adjacentPositions[i];
+		if (adjacentPosition < 0 || adjacentPosition >= BOARD_SIZE) {
+			// With Same Wall, an A facing the edge of the board counts as a match
+			if (state->sameWallRule && sides[i] == SAME_WALL_VALUE) {
+				++matching;
+			}
+			continue;
+		}
+		const uint8_t adjacentCardId = state->grid[adjacentPosition];
+		if (adjacentCardId == 0xFF) {
+			continue;
+		}
+		if (cards_aMatchesB(
+				attributes,
+				position,
+				state->cards[adjacentCardId].attributes,
+				(uint8_t)adjacentPosition
+			)) {
+			++matching;
+		}
+	}
+	return matching;
 }
 
 static bool aMatchesOrBeatsB(
@@ -259,6 +273,7 @@ createGameState(const ProcessContext processContext, CachedCards *cache, GameSta
 	const uint8_t specialRules =
 		readByte(processContext.handle, processContext.moduleBaseAddress + MO_SPECIAL_RULES);
 	gameState->sameRule = (specialRules & SPECIAL_RULE_SAME) != 0;
+	gameState->sameWallRule = (specialRules & SPECIAL_RULE_SAME_WALL) == SPECIAL_RULE_SAME_WALL;
 	gameState->elementalRule = (specialRules & SPECIAL_RULE_ELEMENTAL) != 0;
 
 	// Cache in-use cards + attributes + availability
