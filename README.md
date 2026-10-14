@@ -49,3 +49,13 @@ long it took:
 Add test suites as C files under `tests/`, using `TEST`, `ASSERT_INT_EQ` and
 `ASSERT_BOOL_EQ` from `tests/test.h`. Register each suite in
 `tests/test.c`; the build automatically compiles all test files.
+
+# Support
+
+This work is released for free for anybody to download or modify. I'll never
+charge money for it.
+
+That said, if you want to kick me a couple of quid for a cup of tea, I'd be
+extremely grateful.
+
+[![Support me on Ko-fi](docs/kofi.png?v=1)](https://ko-fi.com/philarmstead)
